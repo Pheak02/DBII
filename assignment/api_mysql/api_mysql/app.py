@@ -2,9 +2,9 @@ from flask import Flask
 from flask_restx import Api, Resource, reqparse
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import exc
-from config import Config
+# from config import Config
 from models import terms
-config = Config()
+# config = Config()
 db = SQLAlchemy()
 app = Flask(__name__)
 app.config.from_object(config)

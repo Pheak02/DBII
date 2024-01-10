@@ -1,9 +1,14 @@
 from flask import Flask
 from flask_restx import Api, Resource, fields, reqparse
+from flask_sqlalchemy import SQLAlchemy
+import uuid
 
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:meisme2023!@localhost:3306/project_tracker'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 api = Api(app, version='1.0', title='Task Tracker API', description='API for managing project tasks')
 
+db = SQLAlchemy(app)
 # Model for task
 task_model = api.model('Task', {
     'id': fields.String(readOnly=True, description='The task unique identifier'),
@@ -15,10 +20,18 @@ task_model = api.model('Task', {
 })
 
 # Mock data
-tasks = [
-    {'id': '1', 'title': 'Task 1', 'description': 'Finish the course!', 'priority': 'high', 'deadline': '2024-01-01', 'assigned_to': 'Sopheak Saing'},
-    {'id': '2', 'title': 'Task 2', 'description': 'Can apply to real project', 'priority': 'medium', 'deadline': '2024-02-01', 'assigned_to': 'Sopheak Saing'},
-]
+# tasks = [
+#     {'id': '1', 'title': 'Task 1', 'description': 'Finish the course!', 'priority': 'high', 'deadline': '2024-01-01', 'assigned_to': 'Sopheak Saing'},
+#     {'id': '2', 'title': 'Task 2', 'description': 'Can apply to real project', 'priority': 'medium', 'deadline': '2024-02-01', 'assigned_to': 'Sopheak Saing'},
+# ]
+
+class Task(db.Model):
+    id = db.Column(db.String(36), primary_key=True, default=str(uuid.uuid4()))
+    title = db.Column(db.String(45), nullable=False)
+    description = db.Column(db.String(45))
+    priority = db.Column(db.String(45), default='medium')
+    deadline = db.Column(db.String(45))
+    assigned_to = db.Column(db.String(45))
 
 # Parser for request parameters
 parser = reqparse.RequestParser()
@@ -29,11 +42,27 @@ parser.add_argument('deadline', type=str, help='Task deadline')
 parser.add_argument('assigned_to', type=str, help='Assigned user')
 
 # Resource for handling tasks
+# @api.route('/tasks')
+# class TaskListResource(Resource):
+#     @api.marshal_list_with(task_model)
+#     def get(self):
+#         """List all tasks"""
+#         return tasks
+
+#     @api.expect(parser)
+#     @api.marshal_with(task_model)
+#     def post(self):
+#         """Create a new task"""
+#         args = parser.parse_args()
+#         task = {'id': str(len(tasks) + 1), **args}
+#         tasks.append(task)
+#         return task, 201
 @api.route('/tasks')
 class TaskListResource(Resource):
     @api.marshal_list_with(task_model)
     def get(self):
         """List all tasks"""
+        tasks = Task.query.all()
         return tasks
 
     @api.expect(parser)
@@ -41,8 +70,13 @@ class TaskListResource(Resource):
     def post(self):
         """Create a new task"""
         args = parser.parse_args()
-        task = {'id': str(len(tasks) + 1), **args}
-        tasks.append(task)
+
+        # Manually set the id using uuid
+        args['id'] = str(uuid.uuid4())
+
+        task = Task(**args)
+        db.session.add(task)
+        db.session.commit()
         return task, 201
 
 
